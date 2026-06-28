@@ -1,5 +1,11 @@
-import { fetch, Agent } from "undici";
-globalThis.fetch = fetch;
+const _originalFetch = globalThis.fetch;
+globalThis.fetch = (url, opts) => {
+  if (opts?.dispatcher) {
+    const { dispatcher, ...cleanOpts } = opts;
+    return _originalFetch(url, cleanOpts);
+  }
+  return _originalFetch(url, opts);
+};
 
 import { Worker } from "bullmq";
 import { OllamaEmbeddings } from "@langchain/ollama";

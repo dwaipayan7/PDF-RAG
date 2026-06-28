@@ -1,15 +1,19 @@
 import FileUploadComponent from './components/file-upload';
 import ChatComponent from './components/chat';
+
 export default function Home() {
   return (
-    <div>
-      <div className="min-h-screen w-screen flex">
-        <div className="w-[30vw] min-h-screen p-4 flex justify-center items-center">
+    <div className="h-screen w-screen flex bg-slate-950 overflow-hidden">
+      {/* Sidebar — Upload area */}
+      <div className="w-[320px] min-w-[280px] h-screen border-r border-white/10 bg-slate-900/50 flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-6">
           <FileUploadComponent />
         </div>
-        <div className="w-[70vw] min-h-screen border-l-2">
-          <ChatComponent />
-        </div>
+      </div>
+
+      {/* Main — Chat area */}
+      <div className="flex-1 h-screen">
+        <ChatComponent />
       </div>
     </div>
   );
