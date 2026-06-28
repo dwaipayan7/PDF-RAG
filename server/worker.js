@@ -1,10 +1,12 @@
+import { fetch, Agent } from "undici";
+globalThis.fetch = fetch;
+
 import { Worker } from "bullmq";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { log } from "node:console";
 
 const worker = new Worker(
   "file-upload-queue",
@@ -41,20 +43,34 @@ const worker = new Worker(
       baseUrl: "http://localhost:11434",
     });
 
-    const qdrantClient = new QdrantClient({
-      url: "http://localhost:6333",
-      checkCompatibility: false,
-    });
+    console.log("Embedding model initialized");
 
-    const vectorStore = await QdrantVectorStore.fromExistingCollection(
-      embeddings,
-      {
-        client: qdrantClient,
-        collectionName: "langchainjs-testing",
-      },
-    );
-    await vectorStore.addDocuments(splitDocs);
-    console.log(`All docs are added to vector store`);
+    try {
+      const qdrantClient = new QdrantClient({
+        url: "http://localhost:6333",
+        checkCompatibility: false,
+      });
+
+      console.log("Qdrant client created, connecting to vector store...");
+
+      const vectorStore = await QdrantVectorStore.fromExistingCollection(
+        embeddings,
+        {
+          client: qdrantClient,
+          collectionName: "langchainjs-testing",
+        },
+      );
+
+      console.log("Vector store connected, adding documents...");
+
+      await vectorStore.addDocuments(splitDocs);
+      console.log(
+        `All ${splitDocs.length} docs added to vector store successfully`,
+      );
+    } catch (err) {
+      console.error("Error adding docs to vector store:", err);
+      throw err;
+    }
   },
   {
     concurrency: 100,
@@ -64,3 +80,15 @@ const worker = new Worker(
     },
   },
 );
+
+worker.on("completed", (job) => {
+  console.log(`Job ${job.id} completed successfully`);
+});
+
+worker.on("failed", (job, err) => {
+  console.error(`Job ${job?.id} failed:`, err.message);
+});
+
+worker.on("error", (err) => {
+  console.error("Worker error:", err);
+});
