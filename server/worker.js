@@ -1,8 +1,10 @@
 import { Worker } from "bullmq";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { QdrantVectorStore } from "@langchain/qdrant";
+import { QdrantClient } from "@qdrant/js-client-rest";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { CharacterTextSplitter } from "@langchain/textsplitters";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { log } from "node:console";
 
 const worker = new Worker(
   "file-upload-queue",
@@ -10,27 +12,44 @@ const worker = new Worker(
     console.log(`Job:`, job.data);
     const data = JSON.parse(job.data);
 
+    // const data = job.data;
+
+    if (!data.path) {
+      throw new Error("Missing file path in job payload.");
+    }
+
     // Load the PDF
     const loader = new PDFLoader(data.path);
     const docs = await loader.load();
 
+    console.log("The Docs are: ", docs);
+
     // Split the documents into chunks
-    const splitter = new CharacterTextSplitter({
+    const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 1000,
       chunkOverlap: 200,
     });
 
+    //splitText
+
     const splitDocs = await splitter.splitDocuments(docs);
+
+    console.log("The Split Docs are: ", splitDocs);
 
     const embeddings = new OllamaEmbeddings({
       model: "nomic-embed-text-v2-moe",
       baseUrl: "http://localhost:11434",
     });
 
+    const qdrantClient = new QdrantClient({
+      url: "http://localhost:6333",
+      checkCompatibility: false,
+    });
+
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {
-        url: "http://localhost:6333",
+        client: qdrantClient,
         collectionName: "langchainjs-testing",
       },
     );
